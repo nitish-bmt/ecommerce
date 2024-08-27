@@ -1,0 +1,5 @@
+export const DB_SUCCESS = "CONNECTED TO DB";
+export const DB_WRITE_SUCCESS = "DATA ADDED TO DB";
+export const DB_READ_SUCCESS = "READING FROM DB";
+export const DB_SEARCH_SUCCESS = "SEARCHING IN DB";
+export const DB_ITEM_NOT_FOUND = "ITEM FOUND IN DB";
