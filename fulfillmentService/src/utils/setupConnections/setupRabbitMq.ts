@@ -1,9 +1,13 @@
 import amqplib from "amqplib";
+import dotenv from "dotenv";
+dotenv.config();
+// import { addToPaymentQueue } from "../../controllers/fulfillmentController";
+const orderQueue = process.env.ORDER_QUEUE||"orders";
+const connection = amqplib.connect("amqp://localhost");
+
 
 export async function setupChannel(){
+  const conn = await connection;
 
-  const connection = await amqplib.connect("amqp://localhost");
-  const channel = await connection.createChannel();
-
-  return channel;
+  return (await connection).createChannel();
 }

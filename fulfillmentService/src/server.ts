@@ -1,14 +1,19 @@
 import express from "express";
 import { router } from "./routes/router";
-//  process.env.PORT |
 
-const PORT = 3000;
+import { configDotenv } from "dotenv";
+import { processFulfillment } from "./controllers/fulfillmentController";
+configDotenv();
+
+const PORT = process.env.PORT || 3000;
 const app = express();
 app.use(express.json());
 
-const ROUTE = '/orderService/v1';
+const ROUTE = '/paymentService/v1';
 app.listen(PORT,()=>{
   console.log(`Server is running here: http://localhost:${PORT}${ROUTE}`);
 });
 
 app.use(ROUTE, router); 
+
+processFulfillment();

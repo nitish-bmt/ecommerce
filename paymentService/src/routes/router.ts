@@ -4,4 +4,4 @@ import { paymentsRouter } from "./subroutes/payment"
 export const router = express.Router();
 
 router.use("/healthcheck", healthcheckRouter);
-router.use("/payments", paymentsRouter);
+// router.use("/payments", paymentsRouter);

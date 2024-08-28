@@ -10,7 +10,7 @@ export interface orderRequest{
 
 export interface order extends orderRequest{
   orderId: string;
-  orderStatus: "PENDING"|"ORDERED"|"ON THE WAY"|"DELIVERED";
+  orderStatus: "DEAD"|"PENDING"|"PLACED"|"DELIVERED";
 }
 
 export interface orderStatus{

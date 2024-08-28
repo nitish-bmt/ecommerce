@@ -1,81 +1,77 @@
 import { Request, Response } from "express";
 import { setupChannel } from "../utils/setupConnections/setupRabbitMq";
-import { RABBIT_CONSUMER_FAILURE, RABBIT_FAILURE } from "../utils/constants/failureConstants";
+import { PAYMENT_FAILURE, RABBIT_CONSUMER_FAILURE, RABBIT_FAILURE } from "../utils/constants/failureConstants";
 import { v4 as uuidv4 } from "uuid";
 
 import dotenv from "dotenv";
-import { order } from "../utils/types";
+import { order, paidOrder } from "../utils/types";
+import { Channel } from "amqplib";
+import { placeOrder, rejectOrder } from "../utils/dbOperations/paymentOperations";
+import { PAYMENT_SUCCESS } from "../utils/constants/successConstants";
 dotenv.config();
 
 const orderQueue = process.env.ORDER_QUEUE || "orders";
 const paymentQueue = process.env.PAYMENT_QUEUE || "payments";
 
-export async function processPayment(req: Request, res: Response){
+export async function processPayment() {
 
-  const orderDetails = await getOrder();
+  try{
 
-  if(orderDetails != null){
+    const channel = await setupChannel();
+    channel.assertQueue(orderQueue);
+    
+    // consume the data from "order" queue and
+    // add it to mongo db
+    // and also add ti in payments queue for fulfillment queue to consume
+    await channel.consume(orderQueue, (msg)=>addToPaymentQueue( channel, msg?.content||null), {noAck: true});
+  }
+  catch(error){
+    console.error(RABBIT_CONSUMER_FAILURE);
+    console.log(error);
+  }
 
-    res
-      .status(200)
-      .json(orderDetails);
-    return;
+}
+
+export async function addToPaymentQueue( channel: Channel ,orderBuffer: Buffer|null) {
+  
+  if(orderBuffer){
+
+    // MOCK PAYMENT
+    const orderDetails: order = JSON.parse(orderBuffer.toString());
+    if(await paymentSuccessful(orderDetails)){
+      orderDetails.orderStatus = "PLACED";
+
+      const paymentDetails: paidOrder = {paymentId: uuidv4(), ...orderDetails};
+      // console.log(paymentDetails);
+
+      // Adding the Data to payments queue
+      channel.assertQueue(paymentQueue);
+      channel.sendToQueue(paymentQueue, Buffer.from(JSON.stringify(paymentDetails)));
+      // updating in db
+      placeOrder(paymentDetails);
+
+      console.log(PAYMENT_SUCCESS, paymentDetails.orderId);
+    }
+    else{
+
+      orderDetails.orderStatus = "DEAD";
+      rejectOrder(orderDetails);
+
+      console.error(PAYMENT_FAILURE, orderDetails.orderId);
+    }
   }
   else{
-    res
-      .status(200)
-      .send("empty queue");
-    return;
+    console.log("ORDER QUEUE EMPTY");
   }
+
 }
 
-async function getOrder(){
-  try{
-    const channel = await setupChannel();
-
-    channel.assertQueue(orderQueue);
-    await channel.consume(orderQueue, (msg)=>{
-
-      if( msg!==null ){
-        console.log("hellll: ", msg.content.toString());
-
-        addToPaymentQueue(msg.content);
-
-        return (msg.content.toString());
-        
-      }
-      else{
-        console.log(RABBIT_CONSUMER_FAILURE);
-      }
-    }, {
-      // acknowledment ke bina delete kr dega
-      noAck: true
-    });
-  }
-  catch(err){
-    console.log(RABBIT_FAILURE);
-  }
-  // finally{
-  //   conn
-  // }
-
-  return null;
-}
-
-async function addToPaymentQueue(orderDetails: Buffer){
-
-  console.log(orderDetails);
-  
-  try{
-    const channel = await setupChannel();
-
-    channel.assertQueue(paymentQueue);
-    channel.sendToQueue(paymentQueue, orderDetails);
-
-  }
-  catch(err){
-    console.log(RABBIT_FAILURE);
-  }
-
-  return null;
+// mock payments
+function paymentSuccessful(orderDetails: order): Promise<boolean>{
+  return new Promise((resolve, reject)=>{
+    setTimeout(()=>{
+      resolve(Math.floor(Math.random()*1000000)%2 == 0)
+      // resolve(true);
+    }, 4999);
+  });
 }

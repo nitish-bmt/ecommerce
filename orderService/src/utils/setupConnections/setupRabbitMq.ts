@@ -1,11 +1,13 @@
 import amqplib from "amqplib";
 
+const connection = amqplib.connect("amqp://localhost");
+
 export async function setupChannel(){
   try {
-    const connection = await amqplib.connect("amqp://localhost");
-    const channel = await connection.createChannel();
-  
+    
+    const channel = (await connection).createChannel();
     return channel;    
+
   } catch (error) {
     console.log('Err. from setupChannel:', error)
   }

@@ -14,7 +14,7 @@ export async function placeOrder(req: Request, res: Response){
   const orderRequested = req.body;
   // console.log(orderRequested);
   const orderId = uuidv4();
-  const orderDetails = {orderId: orderId, ...orderRequested, orderStaus: "PENDING"};
+  const orderDetails = {orderId: orderId, ...orderRequested, orderStatus: "PENDING"};
   // console.log(orderDetails);
   
   // order sent to queue
@@ -28,10 +28,9 @@ export async function placeOrder(req: Request, res: Response){
       durable:true
     });
     
-    await channel.sendToQueue(orderQueue, Buffer.from(JSON.stringify(orderDetails)),{
-      // read about this
-      persistent: true 
-    });
+    channel.sendToQueue(orderQueue, Buffer.from(JSON.stringify(orderDetails)),{
+                                                                                persistent: true 
+                                                                              });
   
     // storing in db
     await storeOrder(orderDetails);

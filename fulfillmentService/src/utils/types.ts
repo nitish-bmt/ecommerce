@@ -10,5 +10,14 @@ export interface orderRequest{
 
 export interface order extends orderRequest{
   orderId: string;
-  orderStatus: string;
+  orderStatus: "DEAD"|"PENDING"|"PLACED"|"DELIVERED";
+}
+
+export interface paidOrder extends order{
+  paymentId: string;
+}
+
+export interface shipment extends paidOrder{
+  shipmentId: string;
+  shipmentStatus: "DEAD"|"ON THE WAY"|"SHIPPED";
 }

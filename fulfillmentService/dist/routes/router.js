@@ -6,7 +6,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.router = void 0;
 const express_1 = __importDefault(require("express"));
 const healthcheck_1 = require("./subroutes/healthcheck");
-const orders_1 = require("./subroutes/orders");
 exports.router = express_1.default.Router();
 exports.router.use("/healthcheck", healthcheck_1.healthcheckRouter);
-exports.router.use("/orders", orders_1.ordersRouter);
+// router.use("/payments", paymentsRouter);
