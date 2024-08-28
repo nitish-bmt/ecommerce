@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000;
 const app = express();
 app.use(express.json());
 
-const ROUTE = '/paymentService/v1';
+const ROUTE = '/fulfillmentService/v1';
 app.listen(PORT,()=>{
   console.log(`Server is running here: http://localhost:${PORT}${ROUTE}`);
 });

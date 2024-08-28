@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SHIPMENT_SUCCESS = exports.PAYMENT_SUCCESS = exports.DB_ITEM_NOT_FOUND = exports.DB_SEARCH_SUCCESS = exports.DB_READ_SUCCESS = exports.DB_WRITE_SUCCESS = exports.DB_SUCCESS = void 0;
+exports.DB_SUCCESS = "CONNECTED TO DB";
+exports.DB_WRITE_SUCCESS = "DATA ADDED TO DB";
+exports.DB_READ_SUCCESS = "READING FROM DB";
+exports.DB_SEARCH_SUCCESS = "SEARCHING IN DB";
+exports.DB_ITEM_NOT_FOUND = "ITEM FOUND IN DB";
+exports.PAYMENT_SUCCESS = "PAYMENT PROCESSED";
+exports.SHIPMENT_SUCCESS = "SHIPPED SUCCESSFULLY";
