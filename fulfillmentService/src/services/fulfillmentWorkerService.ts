@@ -1,12 +1,12 @@
 
 import { setupChannel } from "../utils/setupConnections/setupRabbitMq";
-import { RABBIT_CONSUMER_FAILURE, UNFULFILLED } from "../utils/constants/failureConstants";
+import { rabbitFailure, shipmentFailure } from "../utils/constants/failureConstants";
 import { v4 as uuidv4 } from "uuid";
 
 import dotenv from "dotenv";
-import { paidOrder, shipment } from "../utils/types";
+import { payments, shipments } from "../utils/types";
 import { Channel } from "amqplib";
-import { FULFILLED } from "../utils/constants/successConstants";
+import { shipmentSuccess } from "../utils/constants/successConstants";
 import { addShipment, updateShipmentStatusFailure, updateShipmentStatusSuccess } from "../utils/dbOperations/shipmentOperations";
 dotenv.config();
 
@@ -31,7 +31,7 @@ export async function processFulfillment() {
     }, {noAck: false});
   }
   catch(error){
-    console.error(RABBIT_CONSUMER_FAILURE);
+    console.error(rabbitFailure.RABBIT_CONSUMER_FAILURE);
     console.log(error);
   }
 }
@@ -41,17 +41,16 @@ export async function addToFulfilledQueue( channel: Channel ,orderBuffer: Buffer
   if(orderBuffer){
 
     // MOCK PAYMENT
-    const orderDetails: paidOrder = JSON.parse(orderBuffer.toString());
-    const shipmentDetails: shipment = {shipmentId: uuidv4(), shipmentStatus: "ON THE WAY", ...orderDetails}
+    const orderDetails: payments = JSON.parse(orderBuffer.toString());
+    const shipmentDetails: shipments = {shipmentId: uuidv4(), shipmentStatus: validShipmentStatus.PENDING, ...orderDetails}
     
     addShipment(shipmentDetails);
 
     shipmentSuccessful(shipmentDetails)
       .then((isSuccessful)=>{
         if(isSuccessful){
-          shipmentDetails.orderStatus = "DELIVERED";
-          shipmentDetails.shipmentStatus = "SHIPPED";
-          console.log(FULFILLED, shipmentDetails.orderId);
+          shipmentDetails.shipmentStatus = validShipmentStatus.SUCCEEDED;
+          console.log(shipmentSuccess.SHIPMENT_SUCCESS, shipmentDetails.orderId);
 
           // sending to queue for notification
           channel.assertQueue(shippedQueue);
@@ -61,26 +60,26 @@ export async function addToFulfilledQueue( channel: Channel ,orderBuffer: Buffer
           // changing in db
         }
         else{
-          shipmentDetails.shipmentStatus = "DEAD";
-          console.error(UNFULFILLED, shipmentDetails.orderId);
+          shipmentDetails.shipmentStatus = validShipmentStatus.FAILED;
+          console.error(shipmentFailure.SHIPMENT_FAILED, shipmentDetails.orderId);
           updateShipmentStatusFailure(shipmentDetails);
         }
       })
       .catch((error)=>{
-        shipmentDetails.shipmentStatus = "DEAD";
-        console.error(UNFULFILLED, shipmentDetails.orderId);
+        shipmentDetails.shipmentStatus = validShipmentStatus.PENDING;
+        console.error(shipmentFailure.SHIPMENT_STATUS_UNKNOWN, shipmentDetails.orderId);
         updateShipmentStatusFailure(shipmentDetails);
         console.log(error);
       })
   }
   else{
-    console.log("ORDER QUEUE EMPTY");
+    console.log(rabbitFailure.QUEUE_EMPTY);
   }
 
 }
 
 // mock shipment
-async function shipmentSuccessful(shipmentDetails: shipment): Promise<boolean>{
+async function shipmentSuccessful(shipmentDetails: shipments): Promise<boolean>{
   return new Promise((resolve, reject)=>{
     setTimeout(()=>{
       resolve(true);
