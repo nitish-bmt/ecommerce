@@ -2,7 +2,7 @@ import express from "express";
 import { router } from "./routes/router";
 
 import { configDotenv } from "dotenv";
-import { processFulfillment } from "./controllers/fulfillmentController";
+import { processFulfillment } from "./services/fulfillmentWorkerService";
 configDotenv();
 
 const PORT = process.env.PORT || 3000;

@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import dotenv from "dotenv";
 import { order, paidOrder } from "../utils/types";
-import { Channel } from "amqplib";
+import { Channel, Message } from "amqplib";
 import { placeOrder, rejectOrder } from "../utils/dbOperations/paymentOperations";
 import { PAYMENT_SUCCESS } from "../utils/constants/successConstants";
 dotenv.config();
@@ -23,7 +23,12 @@ export async function processPayment() {
     // consume the data from "order" queue and
     // add it to mongo db
     // and also add ti in payments queue for fulfillment queue to consume
-    await channel.consume(orderQueue, (msg)=>addToPaymentQueue( channel, msg?.content||null), {noAck: true});
+    channel.consume(orderQueue, (msg)=>{
+      if(msg){
+        addToPaymentQueue( channel, msg.content||null);
+        channel.ack(msg);
+      }
+    },{noAck: false});
   }
   catch(error){
     console.error(RABBIT_CONSUMER_FAILURE);
@@ -44,18 +49,19 @@ export async function addToPaymentQueue( channel: Channel ,orderBuffer: Buffer|n
       const paymentDetails: paidOrder = {paymentId: uuidv4(), ...orderDetails};
       // console.log(paymentDetails);
 
+      // updating in db
+      await placeOrder(paymentDetails);
+      
       // Adding the Data to payments queue
       channel.assertQueue(paymentQueue);
       channel.sendToQueue(paymentQueue, Buffer.from(JSON.stringify(paymentDetails)));
-      // updating in db
-      placeOrder(paymentDetails);
 
       console.log(PAYMENT_SUCCESS, paymentDetails.orderId);
     }
     else{
 
       orderDetails.orderStatus = "DEAD";
-      rejectOrder(orderDetails);
+      await rejectOrder(orderDetails);
 
       console.error(PAYMENT_FAILURE, orderDetails.orderId);
     }
@@ -63,7 +69,6 @@ export async function addToPaymentQueue( channel: Channel ,orderBuffer: Buffer|n
   else{
     console.log("ORDER QUEUE EMPTY");
   }
-
 }
 
 // mock payments

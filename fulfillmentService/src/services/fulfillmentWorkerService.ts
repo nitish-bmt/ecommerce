@@ -1,18 +1,17 @@
-import { Request, Response } from "express";
+
 import { setupChannel } from "../utils/setupConnections/setupRabbitMq";
-import { PAYMENT_FAILURE, RABBIT_CONSUMER_FAILURE, RABBIT_FAILURE, UNFULFILLED } from "../utils/constants/failureConstants";
+import { RABBIT_CONSUMER_FAILURE, UNFULFILLED } from "../utils/constants/failureConstants";
 import { v4 as uuidv4 } from "uuid";
 
 import dotenv from "dotenv";
-import { order, paidOrder, shipment } from "../utils/types";
+import { paidOrder, shipment } from "../utils/types";
 import { Channel } from "amqplib";
-import { placeOrder, rejectOrder } from "../utils/dbOperations/paymentOperations";
-import { PAYMENT_SUCCESS, FULFILLED } from "../utils/constants/successConstants";
+import { FULFILLED } from "../utils/constants/successConstants";
 import { addShipment, updateShipmentStatusFailure, updateShipmentStatusSuccess } from "../utils/dbOperations/shipmentOperations";
 dotenv.config();
 
-const orderQueue = process.env.ORDER_QUEUE || "orders";
 const paymentQueue = process.env.PAYMENT_QUEUE || "payments";
+const shippedQueue = process.env.SHIPPED_QUEUE || "shipped";
 
 export async function processFulfillment() {
 
@@ -24,13 +23,17 @@ export async function processFulfillment() {
     // consume the data from "order" queue and
     // add it to mongo db
     // and also add ti in payments queue for fulfillment queue to consume
-    await channel.consume(paymentQueue, (msg)=>addToFulfilledQueue( channel, msg?.content||null), {noAck: true});
+    await channel.consume(paymentQueue, (msg)=>{
+      if(msg){
+        addToFulfilledQueue(channel, msg.content||null);
+        channel.ack(msg);
+      }
+    }, {noAck: false});
   }
   catch(error){
     console.error(RABBIT_CONSUMER_FAILURE);
     console.log(error);
   }
-
 }
 
 export async function addToFulfilledQueue( channel: Channel ,orderBuffer: Buffer|null) {
@@ -49,7 +52,13 @@ export async function addToFulfilledQueue( channel: Channel ,orderBuffer: Buffer
           shipmentDetails.orderStatus = "DELIVERED";
           shipmentDetails.shipmentStatus = "SHIPPED";
           console.log(FULFILLED, shipmentDetails.orderId);
-          updateShipmentStatusSuccess(shipmentDetails);
+
+          // sending to queue for notification
+          channel.assertQueue(shippedQueue);
+
+          // first update in db then add to RabbitMQ queue
+          updateShipmentStatusSuccess(shipmentDetails).then((status) => channel.sendToQueue(shippedQueue, Buffer.from(JSON.stringify(shipmentDetails))))
+          // changing in db
         }
         else{
           shipmentDetails.shipmentStatus = "DEAD";

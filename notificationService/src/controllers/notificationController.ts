@@ -14,6 +14,7 @@ dotenv.config();
 const orderQueue = process.env.ORDER_QUEUE || "orders";
 const paymentQueue = process.env.PAYMENT_QUEUE || "payments";
 const shippedQueue = process.env.SHIPPED_QUEUE || "shipped";
+
 export async function notifyUser() {
 
   try{
@@ -30,6 +31,7 @@ export async function notifyUser() {
 
 }
 
+// mock email
 export async function sendMail( shipmentBuffer: Buffer|null) {
   
   if(shipmentBuffer){

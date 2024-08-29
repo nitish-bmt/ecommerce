@@ -20,7 +20,13 @@ export async function placeOrder(paymentDetails: paidOrder){
     );
 
     const paymentsCol = db.collection("payments");
-    paymentsCol.insertOne(paymentDetails);
+    paymentsCol.insertOne({
+      "paymentId": paymentDetails.paymentId,
+      "orderId": paymentDetails.orderId,
+      "userId": paymentDetails.userId,
+      "paymentStatus": "SUCCEEDED",
+      "paymentType": "UPI"
+    });
 
     return DB_WRITE_SUCCESS;
   }

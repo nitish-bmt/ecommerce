@@ -1,25 +1,21 @@
 import { DB_FAILURE, DB_WRITE_FAILURE } from "../constants/failureConstants";
 import { DB_WRITE_SUCCESS } from "../constants/successConstants";
 import {connectDB} from "../setupConnections/setupMongoDb";
-import { order, paidOrder, shipment } from "../types";
+import { shipment } from "../types";
 
 export async function addShipment(shipmentDetails: shipment){
   const db = await connectDB();
 
   if(db){
-    // const ordersCol =  db.collection("shipment");
-    // ordersCol.updateOne(
-    //   { 
-    //     orderId: paymentDetails.orderId
-    //   },
-    //   {
-    //     $set: {"orderStatus": "PLACED"}
-    //   },
-    //   // {upsert: true} //not sure if i should do this
-    // );
 
     const shipmentsCol =  db.collection("shipments");
-    shipmentsCol.insertOne(shipmentDetails);
+    shipmentsCol.insertOne({
+      "shipmentId": shipmentDetails.shipmentId,
+      "orderId": shipmentDetails.orderId,
+      "userId": shipmentDetails.userId,
+      "paymentId": shipmentDetails.paymentId,
+      "shipmentStatus": shipmentDetails.shipmentStatus
+    });
 
     return DB_WRITE_SUCCESS;
   }
