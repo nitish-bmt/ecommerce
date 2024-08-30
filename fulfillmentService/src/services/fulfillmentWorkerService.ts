@@ -1,6 +1,6 @@
 
 import { setupChannel } from "../utils/setupConnections/setupRabbitMq";
-import { rabbitFailure, shipmentFailure } from "../utils/constants/failureConstants";
+import { dbFailure, rabbitFailure, shipmentFailure } from "../utils/constants/failureConstants";
 import { v4 as uuidv4 } from "uuid";
 
 import dotenv from "dotenv";
@@ -18,6 +18,9 @@ export async function processFulfillment() {
   try{
 
     const channel = await setupChannel();
+    if(!channel){
+      throw new Error();
+    }
     channel.assertQueue(paymentQueue);
     
     // consume the data from "order" queue and
@@ -44,7 +47,12 @@ export async function addToFulfilledQueue( channel: Channel ,orderBuffer: Buffer
     const orderDetails: payments = JSON.parse(orderBuffer.toString());
     const shipmentDetails: shipments = {shipmentId: uuidv4(), shipmentStatus: validShipmentStatus.PENDING, ...orderDetails}
     
-    addShipment(shipmentDetails);
+    try{
+      addShipment(shipmentDetails);
+    }
+    catch(error){
+      console.log(error);
+    }
 
     shipmentSuccessful(shipmentDetails)
       .then((isSuccessful)=>{
@@ -56,8 +64,20 @@ export async function addToFulfilledQueue( channel: Channel ,orderBuffer: Buffer
           channel.assertQueue(shippedQueue);
 
           // first update in db then add to RabbitMQ queue
-          updateShipmentStatusSuccess(shipmentDetails).then((status) => channel.sendToQueue(shippedQueue, Buffer.from(JSON.stringify(shipmentDetails))))
-          // changing in db
+          updateShipmentStatusSuccess(shipmentDetails)
+            .then((status) => {
+              // try catch for rabbitmq
+              try{
+                channel.sendToQueue(shippedQueue, Buffer.from(JSON.stringify(shipmentDetails)))
+              }
+              catch(error){
+                console.error(rabbitFailure.RABBIT_SEND_FAILURE);
+                console.log(error);
+              }
+            })
+            .catch((error)=>{ //catching reject from db operation
+              console.log(error);
+            });
         }
         else{
           shipmentDetails.shipmentStatus = validShipmentStatus.FAILED;

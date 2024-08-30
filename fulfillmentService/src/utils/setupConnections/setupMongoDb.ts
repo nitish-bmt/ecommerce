@@ -1,5 +1,6 @@
 import { MongoClient, ServerApiVersion } from 'mongodb';
 import dotenv from "dotenv";
+import { dbFailure } from '../constants/failureConstants';
 dotenv.config();
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@clustermk1.o7phd.mongodb.net/?retryWrites=true&w=majority&appName=clusterMk1`;
@@ -17,11 +18,11 @@ export async function connectDB(){
 
     await client.connect();
 
-    const db = client.db(process.env.DB);
-    return db;
+    return client.db(process.env.DB);
   }
   catch(error){
-    console.log("could not establish connection to DB");
+    console.error(dbFailure.DB_FAILURE);
+    console.log(error)
   }
 
   return null;

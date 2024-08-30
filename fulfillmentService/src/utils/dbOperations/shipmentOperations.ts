@@ -1,33 +1,33 @@
-import { DB_FAILURE, DB_WRITE_FAILURE } from "../constants/failureConstants";
-import { DB_WRITE_SUCCESS } from "../constants/successConstants";
+import { resolve } from "path";
+import { dbFailure } from "../constants/failureConstants";
+import { dbSuccess } from "../constants/successConstants";
 import {connectDB} from "../setupConnections/setupMongoDb";
-import { shipment } from "../types";
+import { shipments } from "../types";
+import { rejects } from "assert";
 
-export async function addShipment(shipmentDetails: shipment){
+export async function addShipment(shipmentDetails: shipments){
+
   const db = await connectDB();
 
   if(db){
-
-    const shipmentsCol =  db.collection("shipments");
-    shipmentsCol.insertOne({
-      "shipmentId": shipmentDetails.shipmentId,
-      "orderId": shipmentDetails.orderId,
-      "userId": shipmentDetails.userId,
-      "paymentId": shipmentDetails.paymentId,
-      "shipmentStatus": shipmentDetails.shipmentStatus
-    });
-
-    return DB_WRITE_SUCCESS;
+    try{
+      const shipmentsCol =  db.collection("shipments");
+      shipmentsCol.insertOne(shipmentDetails);
+      return new Promise((resolve, reject)=>resolve((dbSuccess.DB_WRITE_SUCCESS)));
+    }
+    catch(error){
+      console.log(error);
+    }
   }
   else{
-    console.log("Could not write to DB");
-    return DB_FAILURE;
+    return new Promise((resolve, reject)=>reject(dbFailure.DB_FAILURE))
   }
-  
-  return DB_WRITE_FAILURE;
+
+
+  return new Promise ((resolve, reject)=>reject(dbFailure.DB_WRITE_FAILURE));
 }
 
-export async function updateShipmentStatusSuccess(shipmentDetails: shipment){
+export async function updateShipmentStatusSuccess(shipmentDetails: shipments){
   const db = await connectDB();
 
   if(db){
@@ -40,34 +40,30 @@ export async function updateShipmentStatusSuccess(shipmentDetails: shipment){
       },
       {
         $set: {
-          "orderStatus": shipmentDetails.orderStatus
+          "orderStatus": validOrderStatus.DELIVERED
         }
       },
     );
     shipmentsCol.updateOne(
       { 
-        shipmentId: shipmentDetails.shipmentId
+        shipmentId: shipmentDetails.orderId
       },
       {
         $set: {
           "shipmentStatus": shipmentDetails.shipmentStatus,
-          "orderStatus": shipmentDetails.orderStatus
         }
       },
     );
-
-
-    return DB_WRITE_SUCCESS;
+    return new Promise((resolve, reject)=>resolve(dbSuccess.DB_WRITE_SUCCESS));
   }
   else{
     console.log("Could not write to DB");
-    return DB_FAILURE;
   }
   
-  return DB_WRITE_FAILURE;
+  return new Promise((resolve, reject)=>reject(dbFailure.DB_WRITE_FAILURE));
 }
 
-export async function updateShipmentStatusFailure(shipmentDetails: shipment){
+export async function updateShipmentStatusFailure(shipmentDetails: shipments){
   const db = await connectDB();
 
   if(db){
@@ -84,13 +80,8 @@ export async function updateShipmentStatusFailure(shipmentDetails: shipment){
       },
     );
 
+    return new Promise((resolve, reject)=>resolve(dbSuccess.DB_WRITE_SUCCESS));
+  }
 
-    return DB_WRITE_SUCCESS;
-  }
-  else{
-    console.log("Could not write to DB");
-    return DB_FAILURE;
-  }
-  
-  return DB_WRITE_FAILURE;
+  return new Promise((resolve, reject)=>reject(dbFailure.DB_WRITE_FAILURE));
 }
