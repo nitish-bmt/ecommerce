@@ -1,19 +1,19 @@
 # for order service
 orderService/node_modules
 orderService/dist
-orderService/.env
+# orderService/.env
 
 # for fulfillment service
 fulfillmentService/node_modules
 fulfillmentService/dist
-fulfillmentService/.env
+# fulfillmentService/.env
 
 # for payment service
 paymentService/node_modules
 paymentService/dist
-paymentService/.env
+# paymentService/.env
 
 # for notification service
 notificationService/node_modules
 notificationService/dist
-notificationService/.env
+# notificationService/.env
