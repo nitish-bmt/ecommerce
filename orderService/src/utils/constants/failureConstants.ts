@@ -4,6 +4,7 @@ export enum dbFailure{
   DB_READ_FAILURE = "COULD NOT READ FROM DB",
   DB_SEARCH_FAILURE = "COULD NOT FIND DB",
   DB_ITEM_NOT_FOUND = "ITEM NOT FOUND IN DB",
+  EMPTY_DB_STRING = "RECEIVED EMPTY DB STRING ",
 }
 
 export enum rabbitFailure{
