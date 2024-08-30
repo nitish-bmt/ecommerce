@@ -1,3 +1,8 @@
 fulfillmentService/node_modules
+fulfillmentService/dist
+
 orderService/node_modules
+orderService/dist
+
 paymentService/node_modules
+paymentService/dist
