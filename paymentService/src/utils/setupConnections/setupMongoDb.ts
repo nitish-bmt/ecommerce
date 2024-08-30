@@ -18,11 +18,11 @@ export async function connectDB(){
 
     await client.connect();
 
-    const db = client.db(process.env.DB);
-    return db;
+    return client.db(process.env.DB);
   }
   catch(error){
-    console.log(dbFailure.DB_FAILURE);
+    console.error(dbFailure.DB_FAILURE);
+    console.log(error)
   }
 
   return null;
