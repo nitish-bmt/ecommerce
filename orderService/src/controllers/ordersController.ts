@@ -14,7 +14,12 @@ export async function placeOrder(req: Request, res: Response){
   // order generate kiya
   const orderRequested = req.body;
   const orderId = uuidv4();
-  const orderDetails = {orderId: orderId, ...orderRequested, orderStatus: "PENDING"};
+  const orderDetails = {
+    orderId: orderId, 
+    userId: "1234",
+    ...orderRequested, 
+    orderStatus: "PENDING"
+  };
   
   // storing in db
   if(!await storeOrder(orderDetails)){

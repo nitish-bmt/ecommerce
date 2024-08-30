@@ -1,7 +1,8 @@
 import { dbFailure } from "../constants/failureConstants";
 import { dbSuccess } from "../constants/successConstants";
+import { validOrderStatus } from "../enums";
 import {connectDB} from "../setupConnections/setupMongoDb";
-import { order, payments } from "../types";
+import { orders, payments } from "../types";
 
 export async function placeOrder(paymentDetails: payments){
 
@@ -44,7 +45,7 @@ export async function placeOrder(paymentDetails: payments){
   return true;
 }
 
-export async function rejectOrder(orderDetails: order){
+export async function rejectOrder(orderDetails: orders){
   const db = await connectDB();
 
   if(!db){

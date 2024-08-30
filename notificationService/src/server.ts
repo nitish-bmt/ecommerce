@@ -5,7 +5,7 @@ import { configDotenv } from "dotenv";
 import { notifyUser } from "./controllers/notificationController";
 configDotenv();
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5004;
 const app = express();
 app.use(express.json());
 

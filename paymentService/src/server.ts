@@ -5,7 +5,7 @@ import { configDotenv } from "dotenv";
 import { processPayment } from "./services/paymentWorkerService";
 configDotenv();
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5002;
 const app = express();
 app.use(express.json());
 

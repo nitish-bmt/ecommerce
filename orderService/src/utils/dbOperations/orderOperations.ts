@@ -1,9 +1,9 @@
 import { dbFailure } from "../constants/failureConstants";
 import { dbSuccess } from "../constants/successConstants";
 import { connectDB } from "../setupConnections/setupMongoDb";
-import { order } from "../types";
+import { orders } from "../types";
 
-export async function storeOrder(orderDetails: order){
+export async function storeOrder(orderDetails: orders){
   
   const db = await connectDB();
   if(!db){
