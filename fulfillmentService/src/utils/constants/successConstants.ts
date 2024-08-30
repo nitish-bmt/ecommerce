@@ -13,3 +13,7 @@ export enum paymentSuccess{
 export enum shipmentSuccess{
   SHIPMENT_SUCCESS = "SHIPPED SUCCESSFULLY",
 }
+
+export enum notifySuccess{
+  NOTIFICATION_SUCCESS = "NOTIFICATION SENT SUCCESSFULLY",
+}

@@ -1,25 +1,31 @@
-import { DB_FAILURE, DB_WRITE_FAILURE } from "../constants/failureConstants";
-import { DB_WRITE_SUCCESS } from "../constants/successConstants";
+import { dbFailure } from "../constants/failureConstants";
+import { dbSuccess } from "../constants/successConstants";
 import {connectDB} from "../setupConnections/setupMongoDb";
-import { order, paidOrder } from "../types";
+import { order, payments } from "../types";
 
-export async function placeOrder(paymentDetails: paidOrder){
+export async function placeOrder(paymentDetails: payments){
+
   const db = await connectDB();
-
-  if(db){
+  if(!db){
+    console.log(dbFailure.DB_FAILURE);
+    return false;
+  }
     
-    const ordersCol =  db.collection("orders");
+  const ordersCol =  db.collection("orders");
+  const paymentsCol = db.collection("payments");
+
+  try{
+    // updating order status
     ordersCol.updateOne(
       { 
         orderId: paymentDetails.orderId
       },
       {
-        $set: {"orderStatus": "PLACED"}
+        $set: {"orderStatus": validOrderStatus.PLACED}
       },
-      // {upsert: true} //not sure if i should do this
     );
 
-    const paymentsCol = db.collection("payments");
+    // adding into payments document
     paymentsCol.insertOne({
       "paymentId": paymentDetails.paymentId,
       "orderId": paymentDetails.orderId,
@@ -27,21 +33,26 @@ export async function placeOrder(paymentDetails: paidOrder){
       "paymentStatus": "SUCCEEDED",
       "paymentType": "UPI"
     });
+  }
+  catch(error){
+    console.log(dbFailure.DB_WRITE_FAILURE);
+    console.log(error);
+    return false;
+  }
 
-    return DB_WRITE_SUCCESS;
-  }
-  else{
-    console.log("Could not write to DB");
-    return DB_FAILURE;
-  }
-  
-  return DB_WRITE_FAILURE;
+  console.log(dbSuccess.DB_WRITE_SUCCESS);
+  return true;
 }
 
 export async function rejectOrder(orderDetails: order){
   const db = await connectDB();
 
-  if(db){
+  if(!db){
+    console.log(dbFailure.DB_FAILURE);
+    return false;
+  }
+
+  try{
     const ordersCol =  db.collection("orders");
     ordersCol.updateOne(
       { 
@@ -51,14 +62,13 @@ export async function rejectOrder(orderDetails: order){
         $set: {"orderStatus": orderDetails.orderStatus}
       },
     );
-
-
-    return DB_WRITE_SUCCESS;
   }
-  else{
-    console.log("Could not write to DB");
-    return DB_FAILURE;
+  catch(error){
+    console.log(dbFailure.DB_WRITE_FAILURE);
+    console.log(error);
+    return false;
   }
   
-  return DB_WRITE_FAILURE;
+  console.log(dbFailure.DB_WRITE_FAILURE);
+  return true;
 }

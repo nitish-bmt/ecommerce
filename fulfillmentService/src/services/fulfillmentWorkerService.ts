@@ -10,93 +10,110 @@ import { shipmentSuccess } from "../utils/constants/successConstants";
 import { addShipment, updateShipmentStatusFailure, updateShipmentStatusSuccess } from "../utils/dbOperations/shipmentOperations";
 dotenv.config();
 
+import { validShipmentStatus } from "../utils/enums";
+
 const paymentQueue = process.env.PAYMENT_QUEUE || "payments";
 const shippedQueue = process.env.SHIPPED_QUEUE || "shipped";
 
 export async function processFulfillment() {
 
-  try{
+  const channel = await setupChannel();
+  if(!channel){
+    console.log(rabbitFailure.RABBIT_CHANNEL_CREATION_FAILURE);
+    return false;
+  }
+  channel.assertQueue(paymentQueue);
 
-    const channel = await setupChannel();
-    if(!channel){
-      throw new Error();
-    }
-    channel.assertQueue(paymentQueue);
-    
-    // consume the data from "order" queue and
-    // add it to mongo db
-    // and also add ti in payments queue for fulfillment queue to consume
+  // consume the data from "order" queue and
+  // add it to mongo db
+  // and also add ti in payments queue for fulfillment queue to consume
+  try{
     await channel.consume(paymentQueue, (msg)=>{
-      if(msg){
+      if(!msg){
+        console.log(rabbitFailure.QUEUE_EMPTY);
+        return false;
+      }
+
+      // db operation
+      try{
         addToFulfilledQueue(channel, msg.content||null);
         channel.ack(msg);
+      }
+      catch(error){
+        console.log(error);
+        return false;
       }
     }, {noAck: false});
   }
   catch(error){
-    console.error(rabbitFailure.RABBIT_CONSUMER_FAILURE);
     console.log(error);
   }
 }
 
 export async function addToFulfilledQueue( channel: Channel ,orderBuffer: Buffer|null) {
   
-  if(orderBuffer){
+  if(!orderBuffer){
+    console.log(rabbitFailure.BUFFER_EMPTY);
+    return false;
+  }
 
-    // MOCK PAYMENT
-    const orderDetails: payments = JSON.parse(orderBuffer.toString());
-    const shipmentDetails: shipments = {shipmentId: uuidv4(), shipmentStatus: validShipmentStatus.PENDING, ...orderDetails}
-    
-    try{
-      addShipment(shipmentDetails);
-    }
-    catch(error){
-      console.log(error);
-    }
+  // MOCK PAYMENT
+  const orderDetails: payments = JSON.parse(orderBuffer.toString());
+  const shipmentDetails: shipments = {
+    shipmentId: uuidv4(),
+    paymentId: orderDetails.paymentId,
+    orderId: orderDetails.orderId,
+    userId: orderDetails.userId,
+    shipmentStatus: validShipmentStatus.PENDING, 
+  }
+  
+  // starting shipment
+  if(!await addShipment(shipmentDetails)){
+    return false;
+  }
 
-    shipmentSuccessful(shipmentDetails)
-      .then((isSuccessful)=>{
-        if(isSuccessful){
-          shipmentDetails.shipmentStatus = validShipmentStatus.SUCCEEDED;
-          console.log(shipmentSuccess.SHIPMENT_SUCCESS, shipmentDetails.orderId);
+  // callback to fire up when shpment is done
+  // asynchronous
+  // non-blocking
+  shipmentSuccessful(shipmentDetails)
+    .then(async(isSuccessful)=>{
 
-          // sending to queue for notification
-          channel.assertQueue(shippedQueue);
+      if(!isSuccessful){
+        shipmentDetails.shipmentStatus = validShipmentStatus.FAILED;
+        await updateShipmentStatusFailure(shipmentDetails);
+        console.log(shipmentFailure.SHIPMENT_FAILED);
+      }
 
-          // first update in db then add to RabbitMQ queue
-          updateShipmentStatusSuccess(shipmentDetails)
-            .then((status) => {
-              // try catch for rabbitmq
-              try{
-                channel.sendToQueue(shippedQueue, Buffer.from(JSON.stringify(shipmentDetails)))
-              }
-              catch(error){
-                console.error(rabbitFailure.RABBIT_SEND_FAILURE);
-                console.log(error);
-              }
-            })
-            .catch((error)=>{ //catching reject from db operation
-              console.log(error);
-            });
-        }
-        else{
-          shipmentDetails.shipmentStatus = validShipmentStatus.FAILED;
-          console.error(shipmentFailure.SHIPMENT_FAILED, shipmentDetails.orderId);
-          updateShipmentStatusFailure(shipmentDetails);
-        }
-      })
-      .catch((error)=>{
-        shipmentDetails.shipmentStatus = validShipmentStatus.PENDING;
-        console.error(shipmentFailure.SHIPMENT_STATUS_UNKNOWN, shipmentDetails.orderId);
-        updateShipmentStatusFailure(shipmentDetails);
+      // agr successful hai to
+      shipmentDetails.shipmentStatus = validShipmentStatus.SUCCEEDED;
+      
+      // sending to queue for notification
+      channel.assertQueue(shippedQueue);
+      
+      // first update in db then add to RabbitMQ queue
+      if(!await updateShipmentStatusSuccess(shipmentDetails)){
+        return false;
+      }
+      // now adding in queue
+
+      try{
+        channel.sendToQueue(shippedQueue, Buffer.from(JSON.stringify(shipmentDetails)))
+      }
+      catch(error){
         console.log(error);
-      })
-  }
-  else{
-    console.log(rabbitFailure.QUEUE_EMPTY);
-  }
+      }
 
+      console.log(shipmentSuccess.SHIPMENT_SUCCESS, shipmentDetails.orderId);
+  
+    })
+    .catch((error)=>{
+      console.log(error);
+      return false;
+    });
+
+    return true;
 }
+
 
 // mock shipment
 async function shipmentSuccessful(shipmentDetails: shipments): Promise<boolean>{

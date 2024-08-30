@@ -1,3 +1,5 @@
+import { validOrderStatus, validPaymentStatus, validShipmentStatus } from "./enums";
+
 export interface users{
   userId: string;
   username: string;
@@ -24,7 +26,7 @@ export interface orderRequest{
   ];
 }
 
-export interface order extends orderRequest{
+export interface orders extends orderRequest{
   orderId: string;
   orderStatus: validOrderStatus;
 }

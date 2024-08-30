@@ -3,26 +3,31 @@ import dotenv from "dotenv";
 import { dbFailure } from '../constants/failureConstants';
 dotenv.config();
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@clustermk1.o7phd.mongodb.net/?retryWrites=true&w=majority&appName=clusterMk1`;
+const uri = process.env.DB_STRING;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 export async function connectDB(){
-  try{
-    const client = new MongoClient(uri, {
-      serverApi: {
-        version: ServerApiVersion.v1,
-        strict: true,
-        deprecationErrors: true,
-      }
-    });
+  if(uri){
+    try{
+      const client = new MongoClient(uri, {
+        serverApi: {
+          version: ServerApiVersion.v1,
+          strict: true,
+          deprecationErrors: true,
+        }
+      });
 
-    await client.connect();
+      await client.connect();
 
-    return client.db(process.env.DB);
+      return client.db(process.env.DB);
+    }
+    catch(error){
+      console.error(dbFailure.DB_FAILURE);
+      console.log(error)
+    }
   }
-  catch(error){
-    console.error(dbFailure.DB_FAILURE);
-    console.log(error)
+  else{
+    console.error(dbFailure.EMPTY_DB_STRING);
   }
 
   return null;

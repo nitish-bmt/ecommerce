@@ -3,32 +3,36 @@ import dotenv from "dotenv";
 import { rabbitFailure } from "../constants/failureConstants";
 dotenv.config();
 
-export async function setupChannel(){
+export async function setupChannel() {
 
-  const uri = process.env.AMQLIB_URI;
+  const uri = process.env.AMQPLIB_URI;
 
-  try{
-    if(uri != undefined){
-      const connection = await amqplib.connect(uri);
-    
-      try{
-        const channel = await connection.createChannel();
-        return channel;
-      }
-      catch(error){
-        console.error(rabbitFailure.RABBIT_CHANNEL_CREATION_FAILURE);
-        console.log(error);
-      }
-    }
-    else{
-      console.log(rabbitFailure.RABBIT_URL_EMPTY)
-      throw new Error();
-    }
+  if (uri === undefined) {
+    console.log(rabbitFailure.RABBIT_URL_EMPTY);
+    return;
   }
-  catch(error){
-    console.error(rabbitFailure.RABBIT_FAILURE);
+
+  // creating connection
+  // with graceful error handling
+  let connection = null;
+  try {
+    connection = await amqplib.connect(uri);
+  }
+  catch (error) {
     console.log(error);
+    console.log(rabbitFailure.RABBIT_FAILURE);
+    return;
   }
 
-  return null;
+  // channel
+  let channel = null;
+  try {
+    channel = await connection.createChannel();
+  }
+  catch (error) {
+    console.log(error);
+    console.log(rabbitFailure.RABBIT_CHANNEL_CREATION_FAILURE);
+  }
+
+  return channel;
 }

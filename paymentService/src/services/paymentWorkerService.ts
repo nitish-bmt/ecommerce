@@ -1,9 +1,9 @@
 import { setupChannel } from "../utils/setupConnections/setupRabbitMq";
-import { rabbitFailure } from "../utils/constants/failureConstants";
+import { paymentFailure, rabbitFailure } from "../utils/constants/failureConstants";
 import { v4 as uuidv4 } from "uuid";
 
 import dotenv from "dotenv";
-import { order, paidOrder } from "../utils/types";
+import { order, payments } from "../utils/types";
 import { Channel } from "amqplib";
 import { placeOrder, rejectOrder } from "../utils/dbOperations/paymentOperations";
 import { paymentSuccess } from "../utils/constants/successConstants";
@@ -14,60 +14,89 @@ const paymentQueue = process.env.PAYMENT_QUEUE || "payments";
 
 export async function processPayment() {
 
-  try{
+  const channel = await setupChannel();
+  if(!channel){
+    return false;
+  }
 
-    const channel = await setupChannel();
-    channel.assertQueue(orderQueue);
-    
+  channel.assertQueue(orderQueue);
+
+  let paymentProcessed = true;
+  try{
     // consume the data from "order" queue and
     // add it to mongo db
     // and also add ti in payments queue for fulfillment queue to consume
-    channel.consume(orderQueue, (msg)=>{
-      if(msg){
-        addToPaymentQueue( channel, msg.content||null);
-        channel.ack(msg);
+    channel.consume(orderQueue, async(msg)=>{
+      if(!msg){
+        console.log(rabbitFailure.QUEUE_EMPTY);
+        paymentProcessed = false;
+        return;
       }
+
+      if(!await addToPaymentQueue( channel, msg.content)){
+        paymentProcessed = false;
+        return;
+      }
+      channel.ack(msg);
+      
     },{noAck: false});
   }
   catch(error){
-    console.error(rabbitFailure.RABBIT_CONSUMER_FAILURE);
+    console.log(rabbitFailure.RABBIT_CONSUMER_FAILURE);
     console.log(error);
+    return false;
   }
 
+  if(paymentProcessed){
+    console.log(paymentSuccess.PAYMENT_SUCCESS);
+  }
+  return paymentProcessed;
 }
 
 export async function addToPaymentQueue( channel: Channel ,orderBuffer: Buffer|null) {
   
-  if(orderBuffer){
-
-    // MOCK PAYMENT
-    const orderDetails: order = JSON.parse(orderBuffer.toString());
-    if(await paymentSuccessful(orderDetails)){
-      orderDetails.orderStatus = "PLACED";
-
-      const paymentDetails: paidOrder = {paymentId: uuidv4(), ...orderDetails};
-      // console.log(paymentDetails);
-
-      // updating in db
-      await placeOrder(paymentDetails);
-      
-      // Adding the Data to payments queue
-      channel.assertQueue(paymentQueue);
-      channel.sendToQueue(paymentQueue, Buffer.from(JSON.stringify(paymentDetails)));
-
-      console.log(paymentSuccess.PAYMENT_SUCCESS, paymentDetails.orderId);
-    }
-    else{
-
-      orderDetails.orderStatus = "DEAD";
-      await rejectOrder(orderDetails);
-
-      console.error(rabbitFailure.PAYMENT_FAILURE, orderDetails.orderId);
-    }
+  if(!orderBuffer){
+    console.log(rabbitFailure.QUEUE_EMPTY);
+    return false;
   }
-  else{
-    console.log("ORDER QUEUE EMPTY");
+
+  // MOCK PAYMENT
+  const orderDetails: order = JSON.parse(orderBuffer.toString());
+  if(! await paymentSuccessful(orderDetails)){
+
+    orderDetails.orderStatus = validOrderStatus.FAILED;
+    await rejectOrder(orderDetails)
+    console.error(paymentFailure.PAYMENT_FAILURE, orderDetails.orderId);
+    return false;
   }
+
+  // baaki code would work if payment is successful
+  orderDetails.orderStatus = validOrderStatus.PLACED;
+  const paymentDetails: payments = {
+    paymentId: uuidv4(),
+    orderId: orderDetails.orderId,
+    userId: orderDetails.userId,
+    paymentStatus: validPaymentStatus.SUCCEEDED,
+  };
+
+  // updating in db
+  if(!await placeOrder(paymentDetails)){
+    return false;
+  }      
+
+  // Adding the Data to payments queue
+  channel.assertQueue(paymentQueue);
+  try{
+    channel.sendToQueue(paymentQueue, Buffer.from(JSON.stringify(paymentDetails)));
+  }
+  catch(error){
+    console.log(rabbitFailure.RABBIT_SEND_FAILURE);
+    console.log(error);
+    return false;
+  }
+
+  console.log(paymentSuccess.PAYMENT_SUCCESS, paymentDetails.orderId);
+  return true;
 }
 
 // mock payments
