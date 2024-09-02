@@ -3,8 +3,8 @@ import { dbSuccess } from "../constants/successConstants";
 import { validOrderStatus } from "../enums";
 import {connectDB} from "../setupConnections/setupMongoDb";
 import { orders, payments } from "../types";
-import { updateOrderStatus } from "./orderOperations";
 import dotenv from "dotenv";
+import { updateOrderStatus } from "./orderOperations";
 dotenv.config();
 
 const paymentsCollection = process.env.PAYMENTS_COLLECTION || "payments";

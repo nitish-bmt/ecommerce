@@ -5,9 +5,10 @@ import { v4 as uuidv4 } from "uuid";
 import dotenv from "dotenv";
 import { orders, payments } from "../utils/types";
 import { Channel } from "amqplib";
-import { placeOrder, rejectOrder } from "../utils/dbOperations/paymentOperations";
+import { addPayment, placeOrder } from "../utils/dbOperations/paymentOperations";
 import { paymentSuccess } from "../utils/constants/successConstants";
 import { validOrderStatus, validPaymentStatus } from "../utils/enums";
+import { updateOrderStatus } from "../utils/dbOperations/orderOperations";
 dotenv.config();
 
 const orderQueue = process.env.ORDER_QUEUE || "orders";
@@ -36,10 +37,11 @@ export async function processPayment() {
 
       if(!await addToPaymentQueue( channel, msg.content)){
         paymentProcessed = false;
+        channel.ack(msg);
         return;
       }
-      channel.ack(msg);
       
+      channel.ack(msg);
     },{noAck: false});
   }
   catch(error){
@@ -63,27 +65,32 @@ export async function addToPaymentQueue( channel: Channel ,orderBuffer: Buffer|n
 
   // MOCK PAYMENT
   const orderDetails: orders = JSON.parse(orderBuffer.toString());
+  const paymentDetails: payments = {
+    paymentId: uuidv4(),
+    orderId: orderDetails.orderId,
+    userId: orderDetails.userId,
+    paymentStatus: validPaymentStatus.PENDING,
+  }
+
   if(! await paymentSuccessful(orderDetails)){
 
     orderDetails.orderStatus = validOrderStatus.FAILED;
-    await rejectOrder(orderDetails)
+    paymentDetails.paymentStatus = validPaymentStatus.FAILED;
+
+    await updateOrderStatus(orderDetails.orderId, orderDetails.orderStatus);
+    await addPayment(paymentDetails);
+
     console.error(paymentFailure.PAYMENT_FAILURE, orderDetails.orderId);
     return false;
   }
 
   // baaki code would work if payment is successful
-  orderDetails.orderStatus = validOrderStatus.PLACED;
-  const paymentDetails: payments = {
-    paymentId: uuidv4(),
-    orderId: orderDetails.orderId,
-    userId: orderDetails.userId,
-    paymentStatus: validPaymentStatus.SUCCEEDED,
-  };
-
+  paymentDetails.paymentStatus = validPaymentStatus.SUCCEEDED
   // updating in db
   if(!await placeOrder(paymentDetails)){
     return false;
   }      
+  orderDetails.orderStatus = validOrderStatus.PLACED;
 
   // Adding the Data to payments queue
   channel.assertQueue(paymentQueue);

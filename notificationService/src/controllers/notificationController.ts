@@ -21,13 +21,16 @@ export async function notifyUser() {
     await channel.consume(shippedQueue, (msg)=>{
 
       if(!msg){
-        console.log(rabbitFailure.BUFFER_EMPTY)
+        console.log(rabbitFailure.BUFFER_EMPTY);
         return false;
       }
       if(!sendMail(msg.content)){
+        channel.ack(msg);
         return false;
       }
-    }, {noAck: true});
+
+      channel.ack(msg);
+    }, {noAck: false});
   }
   catch(error){
     console.log(rabbitFailure.RABBIT_CHANNEL_CREATION_FAILURE);

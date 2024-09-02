@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 import { payments, shipments } from "../utils/types";
 import { Channel } from "amqplib";
 import { shipmentSuccess } from "../utils/constants/successConstants";
-import { addShipment, updateShipmentStatusFailure, updateShipmentStatusSuccess } from "../utils/dbOperations/shipmentOperations";
+import { addShipment, updateShipmentStatus } from "../utils/dbOperations/shipmentOperations";
 dotenv.config();
 
 import { validShipmentStatus } from "../utils/enums";
@@ -37,12 +37,15 @@ export async function processFulfillment() {
       // db operation
       try{
         addToFulfilledQueue(channel, msg.content||null);
-        channel.ack(msg);
       }
       catch(error){
         console.log(error);
         return false;
       }
+      finally{
+        channel.ack(msg);
+      }
+
     }, {noAck: false});
   }
   catch(error){
@@ -80,18 +83,17 @@ export async function addToFulfilledQueue( channel: Channel ,orderBuffer: Buffer
 
       if(!isSuccessful){
         shipmentDetails.shipmentStatus = validShipmentStatus.FAILED;
-        await updateShipmentStatusFailure(shipmentDetails);
+        await updateShipmentStatus(shipmentDetails);
         console.log(shipmentFailure.SHIPMENT_FAILED);
       }
-
-      // agr successful hai to
-      shipmentDetails.shipmentStatus = validShipmentStatus.SUCCEEDED;
       
       // sending to queue for notification
       channel.assertQueue(shippedQueue);
       
+      // agr successful hai to
+      shipmentDetails.shipmentStatus = validShipmentStatus.SUCCEEDED;
       // first update in db then add to RabbitMQ queue
-      if(!await updateShipmentStatusSuccess(shipmentDetails)){
+      if(!await updateShipmentStatus(shipmentDetails)){
         return false;
       }
       // now adding in queue

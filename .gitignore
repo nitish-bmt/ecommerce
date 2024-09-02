@@ -1,3 +1,8 @@
+# for users service
+usersService/node_modules
+# usersService/dist
+usersService/.env
+
 # for order service
 orderService/node_modules
 orderService/dist
