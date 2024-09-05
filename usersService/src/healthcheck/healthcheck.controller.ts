@@ -1,17 +1,15 @@
 import { Controller, Get } from '@nestjs/common';
 import { Expose } from 'class-transformer';
-import { formattedServerUptime } from 'src/utils/healthcheck';
+import { HealthcheckDto } from './dto/healthcheck.dto';
+import { HealthcheckService } from './healthcheck.service';
 
 @Controller('healthcheck')
-export class HealthcheckController {
-  
+export class HealthcheckController {  
+  constructor(private healthcheckService: HealthcheckService){}
+
   @Get()
   @Expose()
-  systemUptime(): object{
-    return ({
-      status: 200,
-      desc: "All OK",
-      serverUptime: formattedServerUptime()
-    });
+  handler(): HealthcheckDto{
+    return this.healthcheckService.healthcheck();
   }
 }
