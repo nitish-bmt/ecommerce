@@ -1,6 +1,6 @@
 # for users service
 usersService/node_modules
-# usersService/dist
+usersService/dist
 usersService/.env
 
 # for order service

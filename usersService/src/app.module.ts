@@ -3,10 +3,18 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthcheckController } from './healthcheck/healthcheck.controller';
 import { UsersController } from './users/users.controller';
+import { UsersService } from './users/users.service';
+import { MongooseModule } from '@nestjs/mongoose';
+import { UsersModule } from './users/users.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
-  imports: [],
+  imports: [
+    ConfigModule.forRoot(), //for .env
+    MongooseModule.forRoot(process.env.MONGO_ECOMM_STRING), 
+    UsersModule
+  ],
   controllers: [AppController, HealthcheckController, UsersController, ],
-  providers: [AppService],
+  providers: [AppService, UsersService],
 })
 export class AppModule {}
