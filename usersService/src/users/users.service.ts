@@ -22,22 +22,20 @@ export class UsersService{
   }
 
   async getAllUsers(): Promise<SafeTransferUserDto[]>{
-    const ress: User[] = await this.userModel.find({}).select('-password');
+    
+    const excludedResponse: SafeTransferUserDto[] = await this.userModel.find({}).select('-password');
 
-    // let ress: SafeTransferUserDto[] = new Array<SafeTransferUserDto>();
-    // ress = res;
-    // let temp: SafeTransferUserDto = new SafeTransferUserDto;
-    // res.forEach((usr)=>{
-    //   temp.username = usr.username;
-    //   temp.name = usr.name;
-    //   temp.email = usr.email;
+    let shareableResp: SafeTransferUserDto[] = new Array<SafeTransferUserDto>();
+    let temp: SafeTransferUserDto = new SafeTransferUserDto;
+    excludedResponse.forEach((usr)=>{
+      temp.username = usr.username;
+      temp.name = usr.name;
+      temp.email = usr.email;
 
-    //   ress.push(temp); 
-    // })
-    // res[0].
-    // console.log(typeof(res));
-    return ress;
-    // return (await this.userModel.find({}));
+      shareableResp.push(temp); 
+    });
+
+    return shareableResp;
   }
 
   async countAll(): Promise<number>{
